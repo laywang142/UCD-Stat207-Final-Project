@@ -6,6 +6,7 @@ output: html_document
 
 # Abstract  
 
+
 # Introduction  
 
 
@@ -23,7 +24,7 @@ output: html_document
 
 # Background
 
-
+In the study performed by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions in order to observe how the mice processed stimuli and reacted to it. The procedure consisted of showing two images of varying contrast levels to the mice, one on each side of the head (left and right). The mice were then to select which image had a higher contrast level and 
 *In this project, we analyze a subset of data collected by Steinmetz et al. (2019). While this document provides the basic understanding of the experiments, it is highly recommended that one consults the original publication for a more comprehensive understanding in order to improve the quality of the analysis report.*
 
 

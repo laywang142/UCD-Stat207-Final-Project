@@ -1,15 +1,21 @@
 ---
 title: "Analysis of Neuronal Data on Mice Decision Making"
-author: ""
+author: "Laura Wang"
+
 date: "March 8, 2023"
 output:
  bookdown::html_document2:
     df_print: paged
     number_sections: False
     fig_caption: True
+    code_folding: hide
+    toc: TRUE
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
 header-includes:
     - \usepackage{caption}
-    
+
 ---
 ```{r global_options, include=FALSE}
 setwd(system("pwd", intern = T)) #setting working directory
@@ -27,19 +33,12 @@ library(lmerTest)
 library(gplots)
 ```
 
-### Progress Issues  
-
-- We are finding the average firing rates for the neurons and saying that makes them somewhat comparable. Why can we say that?  
-
-- Can we treat the data sets the similarly despite the data coming from two different mice?  
-
-- Is the average firing rate the only kind of response that we are allowed to use?  
-
-- For the no-stimulus trials, the definition of the success of the trial is to have the mouse do nothing for 1.5 seconds, but we are only observing the first 0.4 seconds of each trial. Should we exclude these trials from the prediction analysis because any indication of actions beyond 0.4 seconds is unknown?  
-
-- Is it correct to interpret this analysis as determining whether or not the recognition of the stimulus in the first 0.4 seconds will correspond to increased neuronal activities which is then correlated with the success of the trial?  
-
-- More generally, in what kinds of situations would we consider random interaction effects???  
+<style>
+p.caption {
+  font-size: 1.1em;
+  font-weight: bold
+}
+</style>
 
 # Abstract  
 
@@ -49,11 +48,15 @@ library(gplots)
 
 *The primary objectives of this project is to understand how the neural activity in the visual cortex is modulated by the two stimuli and how this information can be utilized to predict the outcome of the trial. To be specific, two questions of interest are as follows. *
 
-*1. How do neurons in the visual cortex respond to the stimuli presented on the left and right? (35 pts)*
+This project focuses on understanding how neural activities in the visual cortex are related to the intake and processing of stimuli. The primary questions of interest are as follows:  
 
+1. How do neurons in the visual cortex respond to the stimuli presented on the left and right?   
 *2. How to predict the outcome of each trial using the neural activities and stimuli? (5 pts)*
 
-2. (reworded) Can we predict the success or failure of each trial based on the activity of the neurons and the kinds of stimulus presented?  
+
+2. Can we predict the success or failure of each trial based on the activity of the neurons and the kinds of stimulus presented?  
+
+In the first questions, the focus is on how the stimuli affect the neural activities. In particular, whether or not the stimuli have additive effects on the neural responses. To answer this, a 2-way ANOVA model with mixed effects will be fitted to the entire data set and the variances of a model with only additive effects and a model including an interaction term will be compared. To answer the second question of interest, a predictive model will be built using the first 100 observations of the first session as a testing set and the remaining observations as the training set. The models will be compared using *various criteria* to determine the best concise model.  
 
 
 *For Question 1, various methodologies can be employed to formulate statistically sound hypotheses that align with the research objective. In particular, we would like to know if the left and right stimuli have additive effects on the neural responses (i.e., whether the interaction effect exists). A suggested model and hypothesis can be found in the provided outline below. However, **alternative models or hypotheses may also be proposed**, but it is necessary to consult with the teaching assistants and obtain written approval from the instructor no later than March 6th.*
@@ -63,11 +66,12 @@ library(gplots)
 
 # Background
 
-In the study performed by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions in order to observe how the mice processed stimuli and reacted to it. The procedure consisted of showing two images of varying contrast levels to the mice, one on each side of the head (left and right). In addition to the contrast levels varying between the left and right sides, the contrast levels could also be the same on each side or no image could be shown at all. The mice were then to select which image had a higher contrast level and turn the wheel of the corresponding side to indicate their decision. If a correct answer was given, the mice were rewarded. In the case of the contrast levels being the same on each side, turning the wheel on either side was rewarded. If there were no images shown, the mice would be rewarded for simply doing nothing for 1.5 seconds. Finally, if the stimulus was present and the mouse did not make any movements for 1.5 seconds after it was presented, then the trial was considered a failure.  
+In the study performed by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions in order to observe how the mice processed stimuli and reacted to it. As stated in the original paper, the purpose was to observe the neurological activities related to choice and activities in the mice. One condition that they presented was that neurological activities correlated with choice must be able to predict chosen actions before they occur. The procedure of this experiment consisted of showing two images of varying contrast levels to the mice, one on each side of the head (left and right). In addition to the contrast levels varying between the left and right sides, the contrast levels could also be the same on each side or no image could be shown at all. The mice were then to select which image had a higher contrast level and turn the wheel of the corresponding side to indicate their decision. If a correct answer was given, the mice were rewarded. In the case of the contrast levels being the same on each side, turning the wheel on either side was rewarded. If there were no images shown, the mice would be rewarded for simply doing nothing for 1.5 seconds. Finally, if the stimulus was present and the mouse did not make any movements for 1.5 seconds after it was presented, then the trial was considered a failure.  
 
-Each experimental session was consisted of more than 200 trials with a single mouse. Within the collected data set, the contrast levels of the stimuli took on numerical values in {0, 0.25, 0.5, 1}, where 0 indicates the absence of a stimulus. The activity of the neurons in the mice's visual cortex was recorded and made available in the form of spike trains, which is defined as the sequence of neuronal firing timings where the spike indicates that an action potential has been fired. Previous studies have suggested that the firing rate of a neuron is correlated with the strength of the stimulus, with stronger stimuli resulting in higher firing rates (Glazewski,Barth 2014). The trial's success and failure was recorded as either {1} for success or {-1} for failure. 
+Prior to the experimental sessions, each mouse was trained to achieve high response accuracy and reaction times that were less than 1 second in response to high contrast stimuli. This conditioning continued with no stimuli trials mixed in and then with lower contrast trials. Finally, they were trained in contrast comparison trials. In the original data set, the experimental trials were weighted towards "easier" trials (trials where it was easier to determine which side had higher contrast) in order to maintain motivation and high reward rates throughout the session. Each experimental session was consisted of more than 200 trials with a single mouse. Within the collected data set, the contrast levels of the stimuli took on numerical values in {0, 0.25, 0.5, 1}, where 0 indicates the absence of a stimulus. The activity of the neurons in the mice's visual cortex was recorded and made available in the form of spike trains, which is defined as the sequence of neuronal firing timings where the spike indicates that an action potential has been fired. Previous studies have suggested that the firing rate of a neuron is correlated with the strength of the stimulus, with stronger stimuli resulting in higher firing rates (Glazewski,Barth 2014). The trial's success and failure was recorded as either {1} for success or {-1} for failure.  
 
-For this analysis, we focus on the spike trains of neurons in the visual cortex from the onset of the stimuli (t = 0) to 0.4 seconds post-onset. Only five sessions (Sessions 1 to 5) with the data from two mice (Cori and Frossman) will be used.  
+For this analysis, we focus on the spike trains of neurons in the visual cortex from the onset of the stimuli (t = 0) to 0.4 seconds post-onset. This is because, in the original trial, they observed that the mice would generally turn the wheels during that time period after the simulus had been presented. Only five sessions (Sessions 1 to 5) with the data from two mice (Cori and Frossman) will be used.  
+
 
 
 # Descriptive Analysis  
@@ -79,7 +83,9 @@ For this analysis, we focus on the spike trains of neurons in the visual cortex 
 A total of 5 RDS files are provided that contain the records from five sessions. In each RDS file, you can find the name of mouse from `mouse_name` and date of the experiment from `date_exp`. 
 
 
-```{r}
+
+```{r include=FALSE}
+
 session=list()
 for(i in 1:5){
   session[[i]]=readRDS(paste('./Data/session',i,'.rds',sep=''))
@@ -106,12 +112,11 @@ dim(session[[1]]$spks[[id]])
 
 ```
 
-
-There are no missing values in this data set and no values for the contrasts in the data set that don't conform to the expected values specified in the description. The times, as discussed in the background section, correspond to the times at which the firing data was collected. Spike data was collected 39 times over the 0.4 second interval. Thus, in the time section, there are 39 times listed per each trial. 
+There are no missing values in this data set and no values for the contrasts in the data set that don't conform to the expected values specified in the description. The times, as discussed in the background section, correspond to the times at which the firing data was collected. Spike data was collected 39 times over the 0.4 second interval. Thus, in the time section, there are 39 times listed per each trial. Another general observation is that the each session happens on a different day. For example, session 1 (Cori) happens on December 14, 2016 and session 2 (also Cori) happens on December 17, 2016. The sessions for Frossman (sessions 4 and 5) are also on different dates. However, because the mice were trained on the protocol beforehand and the experiments were designed to maintain high reward rates, it can be argued that the mice aren't expected to be learning or become unwilling to participate over a few days. Additionally, any mice that developed extreme health issues were excluded from the analysis so it is safe to assume that there are no major physiological changes in these mice that could affect the results between the session dates. 
 
 Upon first glance, it is interesting to note that within each session, there are varying numbers of neurons being observed. The exact numbers of neurons for the 5 sessions are listed in *Table 1*.  
 
-```{r}
+```{r echo=FALSE}
 #Table 1: Numbers of Neurons per session
 dims = numeric() 
 
@@ -125,6 +130,9 @@ knitr::kable(cbind(session = c(1:5), dims),
              table.attr = "style='width:45%;'")  %>% kable_paper()
 
 ```
+
+This is 
+
 
 *Define outcome variable*  
 The average firing rates of all of the neurons will be calculated from the number of the spikes recorded across all neurons during the 0.4 second interval. They will be calculated using the equation $\frac{\sum_{j = 1}^{39} \text{spk}_{lmj}}{n_l} \times \frac{1}{0.4}$ where $l = 1,\ldots, 5$, $m = 1, \ldots, n_{trials}$, and $n_l$ is the number of neurons observed during session $l$. By finding the average firing rate for the trails in each session, the rates from each session become comparable to each other as we are standardizing the firing rates by weighting by the number of neurons observed (*???*). 
@@ -147,6 +155,180 @@ n.neurons=dim(session[[ID]]$spks[[1]])[1]
 rate[[j]]=numeric(n.trials)
 for(i in 1:n.trials){
   rate[[j]][i]=sum(session[[ID]]$spks[[i]])/n.neurons/t
+
+}
+}
+
+#make data for each session
+for(i in 1:length(session)){
+  
+  #index for the session number 
+  index <- c(rep(i, dim(session[[i]]$contrast_left)[1]))
+   
+  #pull out the data of interest
+  p =  as.data.frame(cbind(rate[[i]], 
+             session[[i]]$contrast_left, 
+             session[[i]]$contrast_right,
+             session[[i]]$feedback_type, index))
+  
+  #assign column names
+  colnames(p) <- c("fire_rate", "contrast_left", 
+                   "contrast_right", "feedback_type", "index")
+  
+  assign(paste0("session",i),p)
+}       
+
+#combining all of the data frames into one
+dat <- rbind(session1, session2, session3, session4, session5)
+
+#replacing the -1 with 0
+dat$feedback_type[dat$feedback_type == -1] <- 0
+
+#making the contrasts, feedback, and indexes into factors
+dat$index <- as.factor(dat$index)
+dat$contrast_left <- as.factor(dat$contrast_left)
+dat$contrast_right <- as.factor(dat$contrast_right)
+dat$feedback_type <- as.factor(dat$feedback_type)
+
+#summary statistics of the all data from all sessions 
+#summary(dat)
+```
+
+
+```{r echo=FALSE, fig.cap= "Descriptive Plots", fig.topcaption = TRUE, fig.width=9, message=FALSE, warning=FALSE, out.height='35%'}
+#graph showing the distributions of all the rates 
+
+a <- ggplot(dat, aes(x = fire_rate, y = ..count..)) + 
+  geom_density(aes(color = index, fill = index), alpha = 0.3) +
+  geom_density(fill = "grey", alpha = 0.2) + 
+  xlab("Firing Rate") + 
+  labs(color = "Session") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.position = "bottom",
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) 
+  
+
+b <- ggplot(dat, aes(x = index, y = fire_rate, color = index)) + 
+  geom_boxplot() + 
+  xlab("Session") + 
+  ylab("Firing Rate")+ 
+  theme(legend.position = "bottom", 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black"))
+
+counts <- dplyr::summarize(group_by(dat, index, feedback_type),
+          n = n())
+
+c <- ggplot(dat, aes(x = index, fill = feedback_type)) + 
+  geom_bar(width = .85, 
+           position = "dodge") + 
+  geom_text(aes(label = ..count..), stat = "count",
+            vjust = 1.5, 
+            colour = "black",
+            size = 4,
+            position = position_dodge(width = .9)) +
+  xlab("Session") + 
+  labs(fill = "Feedback Type") + 
+  theme(legend.position = "bottom", 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black"))
+
+plot_grid(a,b,c, nrow = 1, ncol = 3, labels = 'auto')
+
+```
+
+From Fig.1a, it is clear that there is some skewdness to the distributions of the average firing rates so the distributions aren't exactly normally distributed. As a whole, as seen in by the curve outlined in black in Fig.1a, the data is a bit more evently distributed. Any potential consequences of this will be analyzed in the sensitivity analysis section. Fig.1b also shows that there are some differences in the average firing rates across the different sessions, but proportions of correct to incorrect answers (as shown in Fig.1c) doesn't appear to be too different across the different sessions. The numbers of trials (observations per session) range from `r min(length(session[[1]]$spks), length(session[[2]]$spks), length(session[[3]]$spks), length(session[[4]]$spks), length(session[[5]]$spks))` to `r max(length(session[[1]]$spks), length(session[[2]]$spks), length(session[[3]]$spks), length(session[[4]]$spks), length(session[[5]]$spks))`. This unbalanced-ness should be taken into account when performing the analyses. 
+
+```{r echo=FALSE, fig.cap="Main Effect Plots", fig.topcaption = TRUE, fig.height=6.5, fig.width=9, message=FALSE, warning=FALSE}
+#main effects plots and interaction plots
+
+#specifying layout
+layout.matrix <- matrix(c(1, 3, 2, 3), nrow = 2, ncol = 2)
+
+layout(mat = layout.matrix,
+       heights = c(1.25, 1.5), # Heights of the two rows
+       widths = c(1, 1)) # Widths of the two columns
+
+# Main effect plot for Left Contrast
+plotmeans(fire_rate~contrast_left, data=dat,xlab="Left Contrast",ylab="Fire Rate",
+          main="Main effect, Left Contrast",cex.lab= 1) 
+
+# Main effect plot for Right Contrast
+plotmeans(fire_rate~contrast_right, data=dat,xlab="Right Contrast",ylab="Fire Rate",
+          main="Main effect, Right Contrast",cex.lab= 1)
+
+#Interaction plot
+interaction.plot(dat$contrast_left, dat$contrast_right, dat$fire_rate
+                ,cex.lab= 1,ylab="Fire Rate",xlab='Left Contrast',
+                trace.label = "Right Contrast")
+
+
+par(mfrow = c(1,1))
+```
+
+In the above interaction plot and main effect plots, there is an indication that there is some sort of interaction between the left and right stimuli. This is observed in the numerous intersections in the interaction plot as well as the grouping of the curves when the left contrast is {1}. Differences in the effect on the firing rate due to the right contrast indicates that an interaction term may be an appropriate addition to the final model.  
+
+```{r message=FALSE, warning=FALSE}
+#try to make time series data
+#average the spks by column to get the avg spks per time bin
+
+# Obtain the avg spks per time bin in each session
+# spiked per time bins averaged across number of neurons
+time.s <- list(length(session))
+
+for(j in 1:length(session)){
+  
+ID=j #session indicator
+
+n.bin=length(session[[ID]]$time[[1]]) #number of times recorded in the interval 0 to 0.4 seconds
+n.neurons=dim(session[[ID]]$spks[[1]])[1] #number of neurons observed in trial
+n.trials = length(session[[ID]]$spks) #number of trials during session
+
+# Obtain the firing rate 
+time.s[[j]]=numeric(n.bin) #each bin is a time interval
+for(i in 1:n.bin){
+  time.s[[j]][i]=mean(t(session[[ID]]$spks)[[i]])
+}
+}
+
+#centers of time bins as specified by experiment
+bin <- seq(0, 0.4, 0.4/39)[-1]
+
+#data frames
+for(i in 1:length(session)){
+
+   
+  #pull out the data of interest
+  p =  as.data.frame(cbind(time.s[[i]], bin))
+  
+  #assign column names
+  colnames(p) <- c("avg_spk", "time")
+  
+  assign(paste0("time.s.",i),p)
+}       
+
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#plots
+
+for(i in 1:length(session)){
+  p = ggplot(get(paste0("time.s.",i)), 
+             aes(x = bin, y = avg_spk)) +
+    geom_point() + 
+    geom_smooth(method = "lm",
+                se = FALSE,
+                color = "red")+
+    xlab("time (s)") + 
+    ylab("average spks") + 
+    labs(main = paste("Average Spks Over Time For Session " , i))
+  
+  assign(paste0("p",i), p)
+
 }
 }
 
@@ -278,9 +460,59 @@ anova(mod1, mod2) #returns that the interaction term is significant
 
 ```
 
+
+##### **Figure 3: Average Spks in Time Bin Per Trial** {.tabset .tabset-fade .tabset-pills}  
+
+###### Session 1  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p1
+```
+
+###### Session 2  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p2
+```
+
+###### Session 3  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p3
+```
+
+###### Session 4  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p4
+```
+
+###### Session 5  
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p5
+```
+
+
+
+## Data Analysis  
+
+```{r message=FALSE, warning=FALSE}
+#initial model
+sig.level <- c(0.05)
+
+mod1 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index), 
+             data = dat) #reduced model
+#summary(mod1)
+
+mod2 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index) +
+               contrast_left:contrast_right,
+             data = dat) #full model
+#summary(mod2)
+
+anova(mod1, mod2) #returns that the interaction term is significant
+#anova(mod1, mod3)
+
+```
+
 To answer the first question of interest, an analysis using *2-way ANOVA with mixed effects* will be performed.  The model will contain the factors for the stimuli from the left and right sides in addition to a random intercept for each session. The general model is as follows:   
 
-$$Y_{ijk} = \mu + \alpha_{i} + n_{k(i)} + \beta_{j} + (\alpha \beta)_{ij} + \epsilon_{ij}$$ 
+$$Y_{ijk} = \mu + \alpha_{i} + n_{k(i)} + \beta_{i} + (\alpha \beta)_{ij} + \epsilon_{ij}$$ 
 
 Where *define all of the variables*  
 
@@ -289,6 +521,18 @@ We include the random effect of the session because the we are randomly assignin
 *Describe the test and test statistics*  
 
 Figuring out how neurons respond to stimuli presented on the left and right sides simplifies determining whether or not the left and right stimuli have only additive effects on the neural responses or if they have an interaction effect. This would indicate whether the left and right stimuli are being processed independently or jointly. *<-(???)*    
+
+
+*build predictive model* 
+Assuming the neurological activities correlate with the choosing to perform an action, it should be possible to predict the outcome of the trial given the neurological activity and the levels of the stimuli presented.  
+
+```{r}
+#predictive model
+#split data
+test <- dat[-c(1:100),]
+train <- dat[c(1:100),]
+```
+
 
 *Describe the results and the conclusions*  
 
@@ -299,7 +543,8 @@ Figuring out how neurons respond to stimuli presented on the left and right side
 - Fitness of the model (Q1?)  
 - Prediction model (accuracy?) (Q2)  
 
-# *Suggested outline* 
+*Suggested outline* 
+
 
 *In this project, you may utilize the template provided in the practice project as a guide. However, it is important to note that for consistency in grading, the final report must include all seven parts listed below, specifically an abstract and six main sections. *
 

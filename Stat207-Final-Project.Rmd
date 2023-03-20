@@ -448,7 +448,6 @@ mod2 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + 
                contrast_left:contrast_right,
              data = dat) #full model
 
-y <- mod2@beta[-c(1:7)]#pulling out the fixed effects from the model
 
 res1 <- anova(mod1, mod2) #returns that the interaction term is significant
 #anova(mod1, mod3)
@@ -793,12 +792,544 @@ lrtest(mod2, fix)
 
 In order to verify the necessity of the random effects of session within the model, a likelihood ratio test will be performed between a model with fixed effects for session and the mixed effect model. Because the likelihood-ratio test between the model with mixed effects and the model with fixed effects returns a p-value much less than 0.05, we reject the null hypothesis that the fixed effect model and mixed effect model fit the data equally well. In other words, the mixed effect model fits our observed data better than the fixed effect model.
 
- 
+### Comparison With Results from Cluster Analysis  
+
+As mentioned in an earlier section, using the mean as a test statistic is a relatively crude method that overlooks the firing patterns of certain neurons and that effect on the overall firing rates. From Fig.5 above, it is worth noting that not all of the neurons behave the same way when the stimuli are presented. The neurons can be broken down into three groups: neurons that don't fire much when the stimuli are presented, neurons that fire a moderate amount, and neurons that fire a lot. Therefore, it should theoretically be possible to divide the neurons into different "types" based on their reactions to stimuli. In this attempt at clustering the data, each individual trial was condensed into the sum of the number of spks per neuron. Then, these values were averaged by the trial type (the specific combinations of left and right contrasts for that trial). This way, each neuron from each session is compared to its average firing rate by the trial type. The K-means clustering algorithm with k = 3 was used to cluster the neurons. Each neuron was assigned to an index (1, 2, or 3) designating the cluster. In this case, 1 corresponds to "medium" activity, 2 corresponds "high" activity, and 3 corresponds to "low" activity. Session 5 had no neurons with "high" activity levels.   
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+set.seed(1)
+
+#first try to get the files sorted by the neurons
+
+# first get the sums of the firings per neuron in each session
+
+for(j in 1:length(session)){
+  
+  x <- session[[j]]$spks
+  augh <- matrix(rep(0, length(x) * dim(x[[1]])[1]), ncol = dim(x[[1]])[1], nrow = length(x))
+  
+  for(i in 1:length(x)){ #number of trials
+    
+    augh[i,] <- apply(x[[i]], 1, sum) 
+    
+  }
+  assign(paste0("r", j), reshape2::melt(augh))
+}
+
+#naming the columns 
+colnames(r1) <- c("trial", "neuron", "num_spks")
+colnames(r2) <- c("trial", "neuron", "num_spks")
+colnames(r3) <- c("trial", "neuron", "num_spks")
+colnames(r4) <- c("trial", "neuron", "num_spks")
+colnames(r5) <- c("trial", "neuron", "num_spks")
+
+#just getting the totals per neuron
+b1 <- summarise(group_by(r1, neuron), 
+                spks = sum(num_spks))
+b2 <- summarise(group_by(r2, neuron), 
+                spks = sum(num_spks))
+b3 <- summarise(group_by(r3, neuron), 
+                spks = sum(num_spks))
+b4 <- summarise(group_by(r4, neuron), 
+                spks = sum(num_spks))
+b5 <- summarise(group_by(r5, neuron), 
+                spks = sum(num_spks))
+
+#putting all the totals into one data frame
+
+
+#get trial types for every trial
+
+for(i in 1:length(session)){
+  
+  #index for the session number 
+  index <- c(rep(i, dim(session[[i]]$contrast_left)[1]))
+  
+  #pull out the data of interest
+  v <- cbind(session[[i]]$contrast_left, 
+                     session[[i]]$contrast_right,
+                     session[[i]]$feedback_type, 
+                     index)
+  
+  v <- as.data.frame(v)
+  
+  #assign column names
+  colnames(v) <- c("contrast_left", 
+                   "contrast_right", 
+                   "feedback_type", 
+                   "index")
+  
+  assign(paste0("s",i), v)
+}      
+
+#finding pairs of trial types
+for(i in 1:length(session)){
+  
+  type <- numeric()
+  
+  for(j in 1:length(session[[i]]$contrast_left)){
+    
+    #assigning a number for the 16 trial types
+  if(get(paste0("s",i))[j,1] == 0 & get(paste0("s",i))[j,2] == 0 ){
+    type[j] <- 1
+  } else if(get(paste0("s",i))[j,1] == 0.25 & get(paste0("s",i))[j,2] == 0 ){
+    type[j] <- 2
+  } else if(get(paste0("s",i))[j,1] == 0.5 & get(paste0("s",i))[j,2] == 0 ){
+    type[j] <- 3
+  } else if(get(paste0("s",i))[j,1] == 1 & get(paste0("s",i))[j,2] == 0 ){
+    type[j] <- 4
+  } else if(get(paste0("s",i))[j,1] == 0 & get(paste0("s",i))[j,2] == 0.25 ){
+    type[j] <- 5
+  } else if(get(paste0("s",i))[j,1] == 0.25 & get(paste0("s",i))[j,2] == 0.25 ){
+    type[j] <- 6
+  } else if(get(paste0("s",i))[j,1] == 0.5 & get(paste0("s",i))[j,2] == 0.25 ){
+    type[j] <- 7
+  } else if(get(paste0("s",i))[j,1] == 1 & get(paste0("s",i))[j,2] == 0.25 ){
+    type[j] <- 8
+  } else if(get(paste0("s",i))[j,1] == 0 & get(paste0("s",i))[j,2] == 0.5 ){
+    type[j] <- 9
+  } else if(get(paste0("s",i))[j,1] == 0.25 & get(paste0("s",i))[j,2] == 0.5 ){
+    type[j] <- 10
+  } else if(get(paste0("s",i))[j,1] == 0.5 & get(paste0("s",i))[j,2] == 0.5 ){
+    type[j] <- 11
+  } else if(get(paste0("s",i))[j,1] == 1 & get(paste0("s",i))[j,2] == 0.5 ){
+    type[j] <- 12
+  } else if(get(paste0("s",i))[j,1] == 0 & get(paste0("s",i))[j,2] == 1 ){
+    type[j] <- 13
+  } else if(get(paste0("s",i))[j,1] == 0.25 & get(paste0("s",i))[j,2] == 1 ){
+    type[j] <- 14
+  } else if(get(paste0("s",i))[j,1] == 0.5 & get(paste0("s",i))[j,2] == 1 ){
+    type[j] <- 15
+  } else if(get(paste0("s",i))[j,1] == 1 & get(paste0("s",i))[j,2] == 1 ){
+    type[j] <- 16
+  } else {}
+  }
+  assign(paste0("t",i), type)
+}
+
+#matching the types to the neuron data
+r1["type"] <- c(rep(t1, dim(session[[1]]$spks[[1]])[1]))
+r2["type"] <- c(rep(t2, dim(session[[2]]$spks[[1]])[1]))
+r3["type"] <- c(rep(t3, dim(session[[3]]$spks[[1]])[1]))
+r4["type"] <- c(rep(t4, dim(session[[4]]$spks[[1]])[1]))
+r5["type"] <- c(rep(t5, dim(session[[5]]$spks[[1]])[1]))
+
+t = 0.4
+
+#find avg spike rate by trial type
+w1 <- summarise(group_by(r1, type, neuron),
+                rate = mean(num_spks)/t)
+w2 <- summarise(group_by(r2, type, neuron),
+                rate = mean(num_spks)/t)
+w3 <- summarise(group_by(r3, type, neuron),
+                rate = mean(num_spks)/t)
+w4 <- summarise(group_by(r4, type, neuron),
+                rate = mean(num_spks)/t)
+w5 <- summarise(group_by(r5, type, neuron),
+                rate = mean(num_spks)/t)
+
+#make this into a matrix/array
+tab1 <- matrix(w1$rate, 
+               nrow = dim(session[[1]]$spks[[1]])[1],
+               ncol = 16)
+tab2 <- matrix(w2$rate, 
+               nrow = dim(session[[2]]$spks[[1]])[1],
+               ncol = 16)
+tab3 <- matrix(w3$rate, 
+               nrow = dim(session[[3]]$spks[[1]])[1],
+               ncol = 16)
+tab4 <- matrix(w4$rate, 
+               nrow = dim(session[[4]]$spks[[1]])[1],
+               ncol = 16)
+tab5 <- matrix(w5$rate, 
+               nrow = dim(session[[5]]$spks[[1]])[1],
+               ncol = 16)
+
+tab <- rbind(tab1, tab2, tab3, tab4, tab5)
+colnames(tab) <- c("(0,0)", "(0.25, 0)", "(0.5, 0)", "(1,0)",
+                   "(0, 0.25)", "(0.25, 0.25)", "(0.5, 025)", "(1, 0.25)",
+                   "(0, 0.5)", "(0.25, 0.5)", "(0.5, 0.5)", "(1, 0.5)",
+                   "(0, 1)", "(0.25, 1)", "(0.5, 1)", "(1,1)"
+)
+
+#K-means cluster analysis
+clusters <- kmeans(tab, 3)
+
+index <-  c(rep(1, dim(session[[1]]$spks[[1]])[1]),
+            rep(2, dim(session[[2]]$spks[[1]])[1]),
+            rep(3, dim(session[[3]]$spks[[1]])[1]),
+            rep(4, dim(session[[4]]$spks[[1]])[1]),
+            rep(5, dim(session[[5]]$spks[[1]])[1]))
+
+#adding cluster assignment to the session numbers
+clusters1 <- as.data.frame(cbind(clusters = clusters$cluster,
+                           index))
+
+c1 <- filter(clusters1, index == 1)
+c2 <- filter(clusters1, index == 2)
+c3 <- filter(clusters1, index == 3)
+c4 <- filter(clusters1, index == 4)
+c5 <- filter(clusters1, index == 5)
+
+#sorting data of sums by the trial number and neuron numbers
+r1 <- r1[
+    order( r1[,1], r1[,2] ),
+  ]
+r2 <- r2[
+  order( r2[,1], r2[,2] ),
+]
+r3 <- r3[
+  order( r3[,1], r3[,2] ),
+]
+r4 <- r4[
+  order( r4[,1], r4[,2] ),
+]
+r5 <- r5[
+  order( r5[,1], r5[,2] ),
+]
+
+#append cluster assignment 
+
+r1["clust"] <- c(rep(c1$clusters, length(session[[1]]$spks)))
+r2["clust"] <- c(rep(c2$clusters, length(session[[2]]$spks)))
+r3["clust"] <- c(rep(c3$clusters, length(session[[3]]$spks)))
+r4["clust"] <- c(rep(c4$clusters, length(session[[4]]$spks)))
+r5["clust"] <- c(rep(c5$clusters, length(session[[5]]$spks)))
+
+#splitting the data by cluster
+
+#cluster 1
+r1_c1 <- as.data.frame(cbind(summarise(group_by(filter(r1, clust == 1), trial),
+                  fire_rate = mean(num_spks)/t),
+                  contrast_left = session[[1]]$contrast_left, 
+                  contrast_right = session[[1]]$contrast_right,
+                  feedback_type = session[[1]]$feedback_type, 
+                  index = rep(1, length(session[[1]]$spks))))
+r2_c1 <- as.data.frame(cbind(summarise(group_by(filter(r2, clust == 1), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[2]]$contrast_left, 
+                             contrast_right = session[[2]]$contrast_right,
+                             feedback_type = session[[2]]$feedback_type, 
+                       index = rep(2, length(session[[2]]$spks))))
+r3_c1 <- as.data.frame(cbind(summarise(group_by(filter(r3, clust == 1), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[3]]$contrast_left, 
+                             contrast_right = session[[3]]$contrast_right,
+                             feedback_type = session[[3]]$feedback_type, 
+                       index = rep(3, length(session[[3]]$spks)))) 
+r4_c1 <- as.data.frame(cbind(summarise(group_by(filter(r4, clust == 1), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[4]]$contrast_left, 
+                             contrast_right = session[[4]]$contrast_right,
+                             feedback_type = session[[4]]$feedback_type, 
+                       index = rep(4, length(session[[4]]$spks))))
+r5_c1 <- as.data.frame(cbind(summarise(group_by(filter(r5, clust == 1), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[5]]$contrast_left, 
+                             contrast_right = session[[5]]$contrast_right,
+                             feedback_type = session[[5]]$feedback_type, 
+                       index = rep(5, length(session[[5]]$spks))))
+
+clust1 <- rbind(r1_c1, r2_c1, r3_c1,
+                r4_c1, r5_c1)
+#making the contrasts, feedback, and indexes into factors
+clust1$index <- as.factor(clust1$index)
+clust1$contrast_left <- as.factor(clust1$contrast_left)
+clust1$contrast_right <- as.factor(clust1$contrast_right)
+clust1$feedback_type <- as.factor(clust1$feedback_type)
+
+#cluster 2
+r1_c2 <- as.data.frame(cbind(summarise(group_by(filter(r1, clust == 2), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[1]]$contrast_left, 
+                             contrast_right = session[[1]]$contrast_right,
+                             feedback_type = session[[1]]$feedback_type, 
+                             index = rep(1, length(session[[1]]$spks))))
+r2_c2 <- as.data.frame(cbind(summarise(group_by(filter(r2, clust == 2), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[2]]$contrast_left, 
+                             contrast_right = session[[2]]$contrast_right,
+                             feedback_type = session[[2]]$feedback_type, 
+                             index = rep(2, length(session[[2]]$spks))))
+r3_c2 <- as.data.frame(cbind(summarise(group_by(filter(r3, clust == 2), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[3]]$contrast_left, 
+                             contrast_right = session[[3]]$contrast_right,
+                             feedback_type = session[[3]]$feedback_type, 
+                             index = rep(3, length(session[[3]]$spks)))) 
+r4_c2 <- as.data.frame(cbind(summarise(group_by(filter(r4, clust == 2), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[4]]$contrast_left, 
+                             contrast_right = session[[4]]$contrast_right,
+                             feedback_type = session[[4]]$feedback_type, 
+                             index = rep(4, length(session[[4]]$spks))))
+
+#r5_c2 <- as.data.frame(cbind(summarise(group_by(filter(r5, clust == 2), trial),
+                                    #   fire_rate = mean(num_spks)/t),
+                            # contrast_left = session[[5]]$contrast_left, 
+                            # contrast_right = session[[5]]$contrast_right,
+                            # feedback_type = session[[5]]$feedback_type, 
+                             #index = rep(5, length(session[[5]]$spks))))#no clust 2
+
+clust2 <- rbind(r1_c2, r2_c2, r3_c2,
+                r4_c2)
+#making the contrasts, feedback, and indexes into factors
+clust2$index <- as.factor(clust2$index)
+clust2$contrast_left <- as.factor(clust2$contrast_left)
+clust2$contrast_right <- as.factor(clust2$contrast_right)
+clust2$feedback_type <- as.factor(clust2$feedback_type)
+
+
+#cluster 3
+r1_c3 <- as.data.frame(cbind(summarise(group_by(filter(r1, clust == 3), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[1]]$contrast_left, 
+                             contrast_right = session[[1]]$contrast_right,
+                             feedback_type = session[[1]]$feedback_type, 
+                             index = rep(1, length(session[[1]]$spks))))
+r2_c3 <- as.data.frame(cbind(summarise(group_by(filter(r2, clust == 3), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[2]]$contrast_left, 
+                             contrast_right = session[[2]]$contrast_right,
+                             feedback_type = session[[2]]$feedback_type, 
+                             index = rep(2, length(session[[2]]$spks))))
+r3_c3 <- as.data.frame(cbind(summarise(group_by(filter(r3, clust == 3), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[3]]$contrast_left, 
+                             contrast_right = session[[3]]$contrast_right,
+                             feedback_type = session[[3]]$feedback_type, 
+                             index = rep(3, length(session[[3]]$spks)))) 
+r4_c3 <- as.data.frame(cbind(summarise(group_by(filter(r4, clust == 3), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[4]]$contrast_left, 
+                             contrast_right = session[[4]]$contrast_right,
+                             feedback_type = session[[4]]$feedback_type, 
+                             index = rep(4, length(session[[4]]$spks))))
+r5_c3 <- as.data.frame(cbind(summarise(group_by(filter(r5, clust == 3), trial),
+                                       fire_rate = mean(num_spks)/t),
+                             contrast_left = session[[5]]$contrast_left, 
+                             contrast_right = session[[5]]$contrast_right,
+                             feedback_type = session[[5]]$feedback_type, 
+                             index = rep(5,length(session[[5]]$spks))))
+
+clust3 <- rbind(r1_c3, r2_c3, r3_c3,
+                r4_c3, r5_c3)
+#making the contrasts, feedback, and indexes into factors
+clust3$index <- as.factor(clust3$index)
+clust3$contrast_left <- as.factor(clust3$contrast_left)
+clust3$contrast_right <- as.factor(clust3$contrast_right)
+clust3$feedback_type <- as.factor(clust3$feedback_type)
+
+#fit anova models
+#cluster 1
+mod1 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index),
+             data = clust1) #reduced model
+
+mod2 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index) +
+               contrast_left:contrast_right,
+             data = clust1) #full model
+
+res2 <- anova(mod1, mod2)
+
+#cluster 2
+mod3 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index),
+             data = clust2) #reduced model
+
+mod4 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index) +
+               contrast_left:contrast_right,
+             data = clust2) #full model
+
+res3 <- anova(mod3, mod4)
+
+#cluster 3
+mod5 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index),
+             data = clust3) #reduced model
+
+mod6 <- lmer(fire_rate ~ as.factor(contrast_left) + as.factor(contrast_right) + (1 | index) +
+               contrast_left:contrast_right,
+             data = clust3) #full model
+
+res4 <- anova(mod5, mod6)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#density of the firing rates by left contrast and session
+f <- ggplot(clust1, aes(x = fire_rate)) + 
+  geom_density(aes(color = contrast_right, fill = contrast_right), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  ylab("") +
+  labs(color = "R.Contrast") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.box = "vertical",
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) +
+  facet_wrap(~index)
+
+
+#density of firing rates by the right contrast and session
+g <-  ggplot(clust1, aes(x = fire_rate)) + 
+  geom_density(aes(color = contrast_left, fill = contrast_left), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  ylab("") + 
+  labs(color = "L.Contrast") +
+  guides(fill = "none") + 
+  theme(legend.box = "vertical",
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.text.y = element_blank()) +
+  facet_wrap(~index)
+
+f <- shift_legend2(f)
+g <- shift_legend2(g)
+```
+
+```{r fig.cap="Firing Rate by Contrast and Session For Cluster 1", fig.topcaption=FALSE, fig.width=9, message=FALSE, warning=FALSE, include=FALSE, out.height='35%'}
+
+plot_grid(f,g, nrow = 1, ncol = 2, labels = 'auto')
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#density of the firing rates by left contrast and session
+h <- ggplot(clust2, aes(x = fire_rate)) + 
+  geom_density(aes(color = contrast_right, fill = contrast_right), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  ylab("") +
+  labs(color = "R.Contrast") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.box = "vertical",
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) +
+  facet_wrap(~index)
+
+
+#density of firing rates by the right contrast and session
+i <-  ggplot(clust2, aes(x = fire_rate)) + 
+  geom_density(aes(color = contrast_left, fill = contrast_left), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  ylab("") + 
+  labs(color = "L.Contrast") +
+  guides(fill = "none") + 
+  theme(legend.box = "vertical",
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.text.y = element_blank()) +
+  facet_wrap(~index)
+
+```
+
+```{r fig.cap="Firing Rate by Contrast and Session For Cluster 2", fig.topcaption=FALSE, fig.width=9, message=FALSE, warning=FALSE, include=FALSE, out.height='35%'}
+
+plot_grid(h,i, nrow = 1, ncol = 2, labels = 'auto')
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#density of the firing rates by left contrast and session
+j <- ggplot(clust3, aes(x = fire_rate)) + 
+  geom_density(aes(color = contrast_right, fill = contrast_right), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  ylab("") +
+  labs(color = "R.Contrast") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.box = "vertical",
+        legend.title = element_text(size = 10),
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) +
+  facet_wrap(~index)
+
+
+#density of firing rates by the right contrast and session
+k <-  ggplot(clust3, aes(x = fire_rate)) + 
+  geom_density(aes(color = contrast_left, fill = contrast_left), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  ylab("") + 
+  labs(color = "L.Contrast") +
+  guides(fill = "none") + 
+  theme(legend.box = "vertical",
+        legend.key.size = unit(.45, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.text.y = element_blank()) +
+  facet_wrap(~index)
+
+j <- shift_legend2(j)
+k <- shift_legend2(k)
+```
+
+```{r fig.cap="Firing Rate by Contrast and Session For Cluster 3", fig.topcaption=FALSE, fig.width=9, message=FALSE, warning=FALSE, include=FALSE, out.height='35%'}
+
+plot_grid(j,k, nrow = 1, ncol = 2, labels = 'auto')
+```
+
+```{r echo=FALSE, fig.cap= "Distribution of Firing Rate Across Sessions and Clusters", fig.width=9, message=FALSE, warning=FALSE, out.height='35%'}
+#graph showing the distributions of all the rates 
+
+a <- ggplot(clust1, aes(x = fire_rate)) + 
+  geom_density(aes(color = index, fill = index), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  labs(color = "Session", 
+       title = "Cluster 1") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.position = c(.95,.95),
+        legend.justification = c("right", "top"), 
+        legend.box.just = "right",
+        legend.key.size = unit(.30, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) 
+
+
+
+b <-  ggplot(clust2, aes(x = fire_rate)) + 
+  geom_density(aes(color = index, fill = index), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  labs(color = "Session",
+       title = "Cluster 2") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.position = c(.95,.95),
+        legend.justification = c("right", "top"), 
+        legend.box.just = "right",
+        legend.key.size = unit(.30, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) 
+
+
+f <-  ggplot(clust3, aes(x = fire_rate)) + 
+  geom_density(aes(color = index, fill = index), alpha = 0.3)+
+  xlab("Firing Rate") + 
+  labs(color = "Session",
+       title = "Cluster 3") +
+  guides(fill = "none", 
+         color = guide_legend(title.hjust = -.5)) + 
+  theme(legend.position = c(.95,.95),
+        legend.justification = c("right", "top"), 
+        legend.box.just = "right",
+        legend.key.size = unit(.30, 'cm'), 
+        panel.border = element_blank(),
+    axis.line = element_line(color = "black")) 
+
+plot_grid(a,b,f, nrow = 1, ncol = 3, labels = 'auto')
+
+```
+
+As seen in Fig.6, the distributions of the firing rates does in fact differ by cluster. Session 5 has no neurons classified as "high" activity and session 4 does not have many neurons of that category either. This could be due to the number of neurons observed as session 5 only has 99 and session 4 has 120. In cluster 1, the distributions for sessions 4 and 5 closely resemble each other, a trend also seen in the overall means analysis. The significance of the interaction term was also tested for the different clusters. The ANOVA model was of the same form as the model introduced earlier, just run on different data sets split by cluster. In all three, when the full and reduced models were compared, the interactions between the left and right contrasts were deemed to not be significant at the significance level $\alpha = 0.05$, which is very different from the results of the initial analysis, which concluded that the interaction was a significant influence on the average firing rate.  
+
 # Discussion  
 
-In this analysis, it was found that the levels of neural activity in the visual cortex are dependent on an interaction between the left and right contrast levels. However, despite some types of trials being notably easier than others, there were still quite a number of missed trials for said easier combinations. That said, the choice of analytical method for this project was a relatively crude and brute force method. The mean is an overly simplified measure of the neural activity and completely ignores any possible patterns that could correlate with certain decisions being made. Further analysis options for this data set would include attempting to distinguish the neurons by type depending on the responses to certain stimuli. Perhaps a more informative method would be to determine what kinds of firing patterns could be observed among the neurons given certain types of stimuli. As each combination of stimuli shows up at least once in every session, it should be possible to take the average firing rate per neuron per trial type. Then, cluster analysis could be done to determine the possible groupings of the neurons based on the responses to certain stimuli. Finally, models could be fitted for each group to be able to see the differences in neural activity given the contrasts, sessions, and the neuron type. Such an analysis is likely to lead to more definitive and informative conclusions. This could also improve possible prediction models, using the given patterns of how certain neuronal groups fire to determine the outcome of a trial. However, in the interest of time and due to my own shortcomings, I have chosen not to perform such an analysis.     
+In this analysis, it was found that the levels of neural activity in the visual cortex are dependent on an interaction between the left and right contrast levels. However, despite some types of trials being notably easier than others, there were still quite a number of missed trials for said easier combinations. That said, the choice of analytical method for this project was a relatively crude and brute force method. The mean is an overly simplified measure of the neural activity and completely ignores any possible patterns that could correlate with certain decisions being made. Further analysis options for this data set would include a more in-depth attempt at distinguishing the neurons by type depending on the responses to certain stimuli. Perhaps actually looking at which types of combinations of stimuli lead to extremely high or low levels of activity would be useful. Or, looking at the patterns of firings based on the stimuli may show trends related to how the stimuli are processed in the visual cortex. This could also improve possible prediction models, using the given patterns of how certain neuronal groups fire to determine the outcome of a trial. However, in the interest of time and due to my own shortcomings, I have chosen not to perform such an analysis.     
 
-The prediction model also has some downfalls. For starters, the prediction model is not generalizable to other sessions or trial types because it was trained for the first session only. As a consequence, it also suffers from a lack of training data. The number of observations that the model is trained on is only about 140, which is only about 10% of the observations that could have been used to train the data. Therefore, in order to build a prediction model that encompasses other sessions, it may be better to do a different kind of split for the data so the model is trained over all sessions.  However, in the interest of having higher accuracy, I opted to work with the smaller data set. 
+The prediction model also has some downfalls. For starters, the prediction model is not generalizable to other sessions or trial types because it was trained for the first session only. As a consequence, it also suffers from a lack of training data. The number of observations that the model is trained on is only about 140, which is only about 10% of the observations that could have been used to train the data. Therefore, in order to build a prediction model that encompasses other sessions, it may be better to do a different kind of split for the data so the model is trained over all sessions. However, in the interest of having higher accuracy, I opted to work with the smaller data set. Additonal possible improvements to the prediction model could be to include the clusters as a factor and determining whether high levels of activity of a neuron of a certain cluster can help predict the outcome of the trial.  
 
 Given my chosen analytical methods, however, some general observations can be made. For one, the patterns of the distributions in firing rates for sessions 1,2,and 3 varied more than Sessions 4 and 5. This could be due to the time between sessions 1 and 2 being longer than the time between sessions 4 and 5. To be more specific, session 1 (Cori) happens on December 14, 2016 and session 2 (also Cori) happens on December 17, 2016. Session 3 occurs on December 18, 2016. The sessions for Frossman (sessions 4 and 5) are also on different dates, but the gap between them is also only one day. However, because the mice were trained on the protocol beforehand and the experiments were designed to maintain high reward rates, it can be argued that the mice aren't expected to be learning or become unwilling to participate over the course of just a few days.Perhaps not performing the trials for a while led to diminished recall of the trained behavior and the mouse had to relearn the process as it went, returning to its original levels after the it had finished relearning the procedure. This hypothetical scenario comes from Fig.1 and Fig.2, in which, like the distributions for sessions 4 and 5, the distributions for sessions 1 and 3 are very similar to each other but session 2 is notably different. Of course, further and more in depth experiments regarding the effect on the extinction of behaviors on the neural response would need to be conducted to reach a definitive conclusion. Other kinds of additional research can look into the possible effects of the trial length as it was observed that the average firing rate of the neurons had a tendency to decrease as the trials went on.  
 
